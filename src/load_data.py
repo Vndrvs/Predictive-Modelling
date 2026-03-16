@@ -91,13 +91,11 @@ def load_alcohol_treatment(path):
 
     df = parse_csv(path, 0, None)
 
-    # find where the actual "Együtt" table starts
+    # find where "Együtt" table starts, keep only that piece
     start = df[df[0] == "Együtt"].index[0] + 1
-
-    # keep only that block
     df = df.iloc[start:]
 
-    # keep year and last column
+    # only keep year and last column
     df = df[[0, df.columns[-1]]]
 
     selectedColumns = { 0: "Év", df.columns[-1]: "Alkoholfüggők_becsült_száma"}
