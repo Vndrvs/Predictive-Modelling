@@ -1,17 +1,18 @@
 import pandas as pd
 
-# csv parser with hungarian encoding
-def parse_csv(path, skippedRows, headerRow):
+# handling the Hungarian encoding and custom table operations here
+def read_hun_csv(path, skippedRows, headerRow):
+    
     dataFrame = pd.read_csv(path, sep=";", encoding="cp1250", skiprows=skippedRows, header=headerRow)
     
     return dataFrame
 
 # basic data formatting
-def clean_dataframe(dataFrame, selectedColumns):
+def prettier_stat_table(dataFrame, selectedColumns):
     # rename columns depending on context
     cleanedDf = dataFrame[list(selectedColumns.keys())].rename(columns=selectedColumns)
 
-    # remove spaces from strings and convert strings to numbers
+    # Hungarian statistical exports use spaces as thousands separators, must strip before numeric conversion
     for col in cleanedDf.columns:
         cleanedDf[col] = (
             cleanedDf[col]
@@ -24,82 +25,85 @@ def clean_dataframe(dataFrame, selectedColumns):
     cleanedDf = cleanedDf.reset_index(drop=True)
 
     return cleanedDf
-    
 
+# table: "Személylysérüléses közlekedési balesetek"
 def load_road_accidents(path):
-     # read hungarian text
-    df = parse_csv(path, 0, 0)
+
+    accidents = read_hun_csv(path, 0, 0)
 
     # remove unused row
-    df.columns = df.iloc[0]
-    df = df.iloc[1:]
+    accidents.columns = accidents.iloc[0]
+    accidents = accidents.iloc[1:]
 
-    # clean duplicate row
-    df = df[df["Év"] != "Év"]
+    # original tables repeat the header row inside the data, have to remove it manually
+    accidents = accidents[accidents["Év"] != "Év"]
 
     selectedColumns = { "Év": "Év", "Ebből: személygépkocsi": "Személygépkocsi_Baleset" }
-    df = clean_dataframe(df, selectedColumns)
-    return df
+    accidents = prettier_stat_table(accidents, selectedColumns)
+    return accidents
 
-#  table: "Ittasan okozott személysérüléses közúti közlekedési balesetek"
+# table: "Ittasan okozott személysérüléses közúti közlekedési balesetek"
 def load_intoxicated_accidents(path):
     
-    df = parse_csv(path, 0, 0)
+    accidents = read_hun_csv(path, 0, 0)
 
     # remove unused row
-    df.columns = df.iloc[0]
-    df = df.iloc[1:]
+    accidents.columns = accidents.iloc[0]
+    accidents = accidents.iloc[1:]
     
-    # clear duplicate row
-    df = df[df["Év"] != "Év"]
+    accidents = accidents[accidents["Év"] != "Év"]
 
     selectedColumns = { "Év": "Év", "Ebből: személygépkocsi": "Ittas_Személygépkocsi_Baleset" }
-    df = clean_dataframe(df, selectedColumns)
+    accidents = prettier_stat_table(accidents, selectedColumns)
     
-    return df
+    return accidents
     
-
+# table: "Személygépjármű állomány"
 def load_personal_cars(path):
-    df = parse_csv(path, 1, 0)
+    
+    dataFrame = read_hun_csv(path, 1, 0)
 
-    cars = df.iloc[0, 1:].to_frame().reset_index()
+    # this dataset is stored horizontally (years as columns), got to reshape into standard format
+    cars = dataFrame.iloc[0, 1:].to_frame().reset_index()
 
     cars.columns = ["Év", "Személygépkocsik"]
     selectedColumns = { "Év": "Év", "Személygépkocsik": "Személygépkocsik" }
-    cars = clean_dataframe(cars, selectedColumns)
+    cars = prettier_stat_table(cars, selectedColumns)
     
     return cars
 
+# table: "Az alkoholisták gondozása"
 def load_alcohol_dependence(path):
 
-    df = parse_csv(path, 0, 0)
+    dependents = read_hun_csv(path, 0, 0)
 
     # fix header
-    df.columns = df.iloc[0]
-    df = df.iloc[1:]
+    dependents.columns = dependents.iloc[0]
+    dependents = dependents.iloc[1:]
 
     selectedColumns = { "Év": "Év", "Az alkoholisták becsült száma, ezer": "Alkoholfüggők_becsült_száma" }
 
-    df = clean_dataframe(df, selectedColumns)
-    # convert thousands → actual count
-    df["Alkoholfüggők_becsült_száma"] = df["Alkoholfüggők_becsült_száma"] * 1000
+    dependents = prettier_stat_table(dependents, selectedColumns)
+    # convert thousands to actual count
+    dependents["Alkoholfüggők_becsült_száma"] = dependents["Alkoholfüggők_becsült_száma"] * 1000
 
-    return df
+    return dependents
 
-
+# table: "Alkohol okozta mentális és viselkedészavar miatt egészségügyi járóbeteg szakellátásban részesülõk"
 def load_alcohol_treatment(path):
 
-    df = parse_csv(path, 0, None)
+    dependents = read_hun_csv(path, 0, None)
 
     # find where "Együtt" table starts, keep only that piece
-    start = df[df[0] == "Együtt"].index[0] + 1
-    df = df.iloc[start:]
+    start = dependents[dependents[0] == "Együtt"].index[0] + 1
+    dependents = dependents.iloc[start:]
 
     # only keep year and last column
-    df = df[[0, df.columns[-1]]]
+    dependents = dependents[[0, dependents.columns[-1]]]
 
-    selectedColumns = { 0: "Év", df.columns[-1]: "Alkoholfüggők_becsült_száma"}
-    df = clean_dataframe(df, selectedColumns)
-    df["Alkoholfüggők_becsült_száma"] = df["Alkoholfüggők_becsült_száma"] * 1000
+    selectedColumns = { 0: "Év", dependents.columns[-1]: "Alkoholfüggők_becsült_száma"}
+    dependents = prettier_stat_table(dependents, selectedColumns)
+    # as the number is written in thousands scale, we multiply locally here
+    dependents["Alkoholfüggők_becsült_száma"] = dependents["Alkoholfüggők_becsült_száma"] * 1000
 
-    return df
+    return dependents

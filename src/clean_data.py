@@ -1,4 +1,5 @@
 import pandas as pd
+from functools import reduce
 
 # two tables contain alcohol dependence data, we have to merge them into one frame
 def merge_alcohol_data(prev, fresh):
@@ -10,16 +11,19 @@ def merge_alcohol_data(prev, fresh):
 
 # create one dataframe from separate ones
 def merge_all_data(*dataFrames):
-    # merge any number of tables with inner join (so only common years remain)
+    # merge any number of tables with inner join (we need matching years which is 2002-2024)
     return reduce(lambda left, right: pd.merge(left, right, on="Év", how="inner"), dataFrames)
 
-# create normalized variable (intoxicated accidents per 100k cars)
+# create normalized variable to make findings less dependent on number of cars (intoxicated accidents per 100k cars)
 def normalize_accidents(dataFrame):
 
-    df["Ittas_Baleset_100ezer_Autóra"] = (
-        df["Ittas_Személygépkocsi_Baleset"]
-        / df["Személygépkocsik"]
-        * 100000
-    )
+    dataFrame["Ittas_Baleset_100ezer_Autóra"] = (dataFrame["Ittas_Személygépkocsi_Baleset"] / dataFrame["Személygépkocsik"] * 100000)
 
+    return dataFrame
+
+# what percentage of the accidents were caused by intoxicated drivers
+def describe_intoxicated_rate(dataFrame):
+
+    dataFrame["Ittas_Baleset_Arány"] = (dataFrame["Ittas_Személygépkocsi_Baleset"] / dataFrame["Személygépkocsi_Baleset"] * 100)
+    
     return dataFrame
