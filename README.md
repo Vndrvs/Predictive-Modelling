@@ -49,10 +49,13 @@ This is examined through both visual analysis and regression modeling.
     │
     ├── src/
     │   ├── load_data.py
+    │   ├── clean_data.py
+    │   ├── eda.py
     │   └── predictive_model.py
-    │
+    │ 
     ├── notebooks/
-    │   └── analysis.ipynb
+    │   ├── notebook_en.ipynb
+    │   └── notebook_hu.ipynb
     │
     ├── requirements.txt
     └── README.md
