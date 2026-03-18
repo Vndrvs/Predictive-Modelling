@@ -31,7 +31,7 @@ def plot_double(dataFrame, col1, col2, title1, title2, ylabel1, ylabel2, x_colum
 
 def plot_indexed_series(dataFrame, columns, title, x_column="Év",):
 
-    plt.figure(figsize=(10,5))
+    plt.figure(figsize=(12,5))
 
     for col in columns:
         # normalize to 100 based on the first row to compare growth rates
@@ -116,10 +116,10 @@ def plot_comparative_scatters(dataFrame, x_variables, y_variables, titles):
     plt.show()
 
 
-# timed plot marking potential breakpoints
+# timed plot that will be able to show the zero tolerance and the covid breakpoints pointed out in our analysis
 def plot_time_series(dataFrame, column, title, ylabel, breakpoints=None, x_column="Év"):
 
-    plt.figure(figsize=(10,5))
+    plt.figure(figsize=(12,5))
 
     plt.plot(dataFrame[x_column], dataFrame[column], marker="o")
     plt.xticks(dataFrame[x_column], rotation=45)
