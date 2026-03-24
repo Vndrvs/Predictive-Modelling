@@ -46,18 +46,47 @@ def forecast_model(dataFrame, y_variable, x_variables):
 
     return model, predictors, actual_accidents, predicted_accidents, r2
 
-def showcase_model_results(model, predictors, actual_accidents, predicted_accidents, r2, title):
+def showcase_model_results(model, predictors, actual_accidents, predicted_accidents, r2, title, language="hu", xlabel=None, ylabel=None, label_map=None):
+
+    # I had no option but to implement a small language modul here because of the excessive number of labels present in this part...
+    if language == "hu":
+        intercept_label = "Tengelymetszet"
+        r2_label = "R² Eredmény"
+        coef_title = "Együtthatók"
+        coef_col1 = "Változó"
+        coef_col2 = "Együttható"
+        perfect_fit_label = "Tökéletes illeszkedés"
+        if xlabel is None:
+            xlabel = "Tényleges érték"
+        if ylabel is None:
+            ylabel = "Becsült érték"
+
+    else:
+        intercept_label = "Intercept"
+        r2_label = "R² Score"
+        coef_title = "Coefficients"
+        coef_col1 = "Variable"
+        coef_col2 = "Coefficient"
+        perfect_fit_label = "Perfect Fit"
+        if xlabel is None:
+            xlabel = "Actual Values"
+        if ylabel is None:
+            ylabel = "Predicted Values"
     
      # display coefficients to see which features drive the result
     output_weights = pd.DataFrame({
-        "Változó": predictors.columns,
-        "Együttható": model.coef_
+        coef_col1: predictors.columns,
+        coef_col2: model.coef_
     })
 
-    print(f"Tengelymetszet: {model.intercept_:.3f}")
-    print(f"R² Eredmény: {r2:.3f}")
-    print("\nEgyütthatók:")
+    if label_map:
+        output_weights[coef_col1] = output_weights[coef_col1].map(label_map)
+
+    print(f"{intercept_label}: {model.intercept_:.3f}")
+    print(f"{r2_label}: {r2:.3f}")
+    print(f"\n{coef_title}:")
     print(output_weights)
+
 
     # set our scatter plot
     plt.figure(figsize=(6, 5))
@@ -68,16 +97,16 @@ def showcase_model_results(model, predictors, actual_accidents, predicted_accide
     max_val = max(actual_accidents.max(), predicted_accidents.max())
     plt.plot([min_val, max_val], [min_val, max_val],
              color='red', linestyle='--', alpha=0.5,
-             label='Tökéletes illeszkedés')
+             label=perfect_fit_label)
 
-    plt.xlabel("Tényleges érték")
-    plt.ylabel("Becsült érték")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.title(title)
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.show()
     
-def compare_models(dataFrame, y_variable, model_specs):
+def compare_models(dataFrame, y_variable, model_specs, label_map=None):
     # compare different explanations: time trend / policy / alcohol dependence
     results = []
     for name, x_variables in model_specs.items():
@@ -89,35 +118,61 @@ def compare_models(dataFrame, y_variable, model_specs):
         }
         # map coefficients back to their variable names
         for var, coef in zip(predictors.columns, model.coef_):
-            row[var] = round(coef, 4)
+            col_name = label_map[var] if label_map and var in label_map else var
+            row[col_name] = round(coef, 4)
 
         results.append(row)
 
     # fill 'NaN' fields with empty spacing to improve looks
     return pd.DataFrame(results).fillna("")
 
-def forecast_and_plot_future(dataFrame, model, x_variables,
-                            actual_accidents, predicted_accidents,
-                            years_ahead=5):
+def forecast_and_plot_future(
+    dataFrame, model, x_variables,
+    actual_accidents, predicted_accidents,
+    years_ahead=5,
+    language="hu",
+    xlabel=None,
+    ylabel=None,
+    title=None
+):
 
-    # create future years based on accident and behaviour data from last observed year
+    # 🌍 language config
+    if language == "hu":
+        actual_label = "Tényleges"
+        predicted_label = "Becsült"
+        forecast_label = "Előrejelzés"
+        if xlabel is None:
+            xlabel = "Év"
+        if ylabel is None:
+            ylabel = "Ittas balesetek száma"
+        if title is None:
+            title = "Modell illeszkedés és előrejelzés"
+    else:
+        actual_label = "Actual"
+        predicted_label = "Fitted"
+        forecast_label = "Forecast"
+        if xlabel is None:
+            xlabel = "Year"
+        if ylabel is None:
+            ylabel = "Alcohol-related accidents"
+        if title is None:
+            title = "Model Fit and Forecast"
+
+    # future years
     last_year = dataFrame["Év"].max()
 
     future_data = pd.DataFrame({
         "Év": range(last_year + 1, last_year + 1 + years_ahead)
     })
 
-    # extend trend consistently with training data of our model
     future_data["Trend"] = future_data["Év"] - dataFrame["Év"].min()
-
-    # hungarian zero tolerance policy remains active after
     future_data["Zéró_Tolerancia"] = 1
 
-    # estimate future number of personal cars in the country using linear trend
+    # car trend (not used directly but kept for consistency)
     car_trend = np.polyfit(dataFrame["Év"], dataFrame["Személygépkocsik"], 1)
     future_data["Személygépkocsik"] = np.poly1d(car_trend)(future_data["Év"])
 
-    # projection of dependent people
+    # alcohol projection
     alcohol_trend = np.polyfit(
         dataFrame["Év"],
         dataFrame["Alkoholfüggők_becsült_száma"],
@@ -126,33 +181,31 @@ def forecast_and_plot_future(dataFrame, model, x_variables,
 
     future_data["Alkoholfüggők"] = np.poly1d(alcohol_trend)(future_data["Év"])
 
-    # create same lag as before
+    # lag
     future_data["Alkoholfüggők_lag1"] = future_data["Alkoholfüggők"].shift(1)
-
-    # first future row uses last observed real accident value
     future_data.loc[0, "Alkoholfüggők_lag1"] = (
         dataFrame["Alkoholfüggők_becsült_száma"].iloc[-1]
     )
 
-    # prepare predictors for future forecast
+    # prediction
     future_predictors = future_data[x_variables]
-
     future_data["Predicted"] = model.predict(future_predictors)
+
+    # plot
     plt.figure(figsize=(8, 5))
 
-    # historical actual vs fitted
     plt.plot(dataFrame["Év"], actual_accidents,
-             marker='o', label="Tényleges")
+             marker='o', label=actual_label)
+
     plt.plot(dataFrame["Év"], predicted_accidents,
-             linestyle='--', label="Becsült")
+             linestyle='--', label=predicted_label)
 
-    # future forecast
     plt.plot(future_data["Év"], future_data["Predicted"],
-             linestyle=':', marker='o', label="Előrejelzés")
+             linestyle=':', marker='o', label=forecast_label)
 
-    plt.xlabel("Év")
-    plt.ylabel("Ittas balesetek száma")
-    plt.title("Modell illeszkedés és előrejelzés")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
     plt.legend()
     plt.grid(True, alpha=0.3)
 

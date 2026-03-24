@@ -8,17 +8,17 @@ plt.style.use("seaborn-v0_8")
 # timed plots
 
 # plots two time series side by side
-def plot_double(dataFrame, col1, col2, title1, title2, ylabel1, ylabel2, x_column="Év", start_zero=False):
+def plot_double(dataFrame, col1, col2, title1, title2, ylabel1, ylabel2, x_column="Év", xlabel=None, start_zero=False):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
     # left plot
     ax1.plot(dataFrame[x_column], dataFrame[col1], marker="o")
-    ax1.set(title=title1, xlabel=x_column, ylabel=ylabel1)
+    ax1.set(title=title1, xlabel=xlabel, ylabel=ylabel1)
     ax1.grid(True, alpha=0.3)
 
     # right plot
     ax2.plot(dataFrame[x_column], dataFrame[col2], marker="o")
-    ax2.set(title=title2, xlabel=x_column, ylabel=ylabel2)
+    ax2.set(title=title2, xlabel=xlabel, ylabel=ylabel2)
     ax2.grid(True, alpha=0.3)
 
     # to see absolute drops vs relative changes
@@ -29,8 +29,15 @@ def plot_double(dataFrame, col1, col2, title1, title2, ylabel1, ylabel2, x_colum
     plt.tight_layout()
     plt.show()
 
-def plot_indexed_series(dataFrame, columns, title, x_column="Év",):
+def plot_indexed_series(dataFrame, columns, title, x_column="Év", xlabel=None,
+                        ylabel=None):
 
+    # my default notebook will be hungarian, but the english version should be able to display english axis names
+    if xlabel is None:
+        xlabel = x_column
+    if ylabel is None:
+        ylabel = "Index (első év = 100)"
+        
     plt.figure(figsize=(12,5))
 
     for col in columns:
@@ -40,15 +47,15 @@ def plot_indexed_series(dataFrame, columns, title, x_column="Év",):
         plt.plot(dataFrame[x_column], indexed, label=col)
 
     plt.title(title)
-    plt.xlabel(x_column)
-    plt.ylabel("Index (első év = 100)")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.legend()
     plt.grid(True, alpha=0.3)
 
     plt.show()
 
 # --------------------
-# correlation analysis
+# accident correlation analysis
 
 def plot_scatter(dataFrame, x, y, title, xlabel, ylabel):
 
@@ -64,13 +71,18 @@ def plot_scatter(dataFrame, x, y, title, xlabel, ylabel):
     plt.show()
 
 # default and detrended correlation matrices placed next to each other
-def plot_dual_correlation_matrix(dataFrame, columns, titles):
+def plot_dual_correlation_matrix(dataFrame, columns, titles, label_map=None):
 
     # simple correlation matrix
     corr_raw = dataFrame[columns].corr()
     # for detrended correlation matrix, calculate YoY percent change to remove time trend
     # drop the first row because it has no comparable previous year
     corr_detrended = dataFrame[columns].pct_change().dropna().corr()
+
+    # will default to hungarian titles, english notebook display enabled by this custom map
+    if label_map:
+        corr_raw = corr_raw.rename(index=label_map, columns=label_map)
+        corr_detrended = corr_detrended.rename(index=label_map, columns=label_map)
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
     
@@ -86,6 +98,7 @@ def plot_dual_correlation_matrix(dataFrame, columns, titles):
     # plot 2: detrended
     sns.heatmap(corr_detrended, mask=mask_det, annot=True, cmap="coolwarm", center=0,
                 fmt=".2f", linewidths=0.5, square=True, ax=ax2, cbar=False)
+    ax2.set_title(titles[1])
 
     for ax in [ax1, ax2]:
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
@@ -94,8 +107,8 @@ def plot_dual_correlation_matrix(dataFrame, columns, titles):
     plt.tight_layout()
     plt.show()
 
-# two linear regression model fits placed next to each other
-def plot_comparative_scatters(dataFrame, x_variables, y_variables, titles):
+# two linear regression model fits placed next to each other for the correlation analysis part of the research
+def plot_comparative_scatters(dataFrame, x_variables, y_variables, titles, xlabels=None, ylabels=None):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
     axes = [ax1, ax2]
@@ -112,12 +125,22 @@ def plot_comparative_scatters(dataFrame, x_variables, y_variables, titles):
         axes[i].set_title(titles[i])
         axes[i].grid(True, alpha=0.3)
 
+         # usual default to hungarian scheme
+        if xlabels:
+            axes[i].set_xlabel(xlabels[i])
+        if ylabels:
+            axes[i].set_ylabel(ylabels[i])
+
     plt.tight_layout()
     plt.show()
 
 
 # timed plot that will be able to show the zero tolerance and the covid breakpoints pointed out in our analysis
-def plot_time_series(dataFrame, column, title, ylabel, breakpoints=None, x_column="Év"):
+def plot_time_series(dataFrame, column, title, ylabel, breakpoints=None, x_column="Év", xlabel=None):
+
+    # manage language switch
+    if xlabel is None:
+        xlabel = x_column
 
     plt.figure(figsize=(12,5))
 
@@ -132,7 +155,7 @@ def plot_time_series(dataFrame, column, title, ylabel, breakpoints=None, x_colum
             plt.text(year, y_max * 0.95, label, rotation=90, va="top", ha="right", fontsize=10)
 
     plt.title(title)
-    plt.xlabel(x_column)
+    plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
